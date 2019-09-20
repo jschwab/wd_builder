@@ -26,85 +26,28 @@
       use star_def
       use const_def
       use crlibm_lib
-      
+      use eos_def
+      use model_builder, only : build_wd
+
       implicit none
-      
+
       ! these routines are called by the standard run_star check_model
       contains
-
-      subroutine eosion_DT_get( &
-              id, k, handle, Z, X, abar, zbar, & 
-              species, chem_id, net_iso, xa, &
-              Rho, log10Rho, T, log10T, & 
-              res, d_dlnRho_const_T, d_dlnT_const_Rho, &
-              d_dabar_const_TRho, d_dzbar_const_TRho, ierr)
-
-         ! INPUT
-         use chem_def, only: num_chem_isos
-         
-         integer, intent(in) :: id ! star id if available; 0 otherwise
-         integer, intent(in) :: k ! cell number or 0 if not for a particular cell         
-         integer, intent(in) :: handle ! eos handle
-
-         real(dp), intent(in) :: Z ! the metals mass fraction
-         real(dp), intent(in) :: X ! the hydrogen mass fraction
-            
-         real(dp), intent(in) :: abar
-            ! mean atomic number (nucleons per nucleus; grams per mole)
-         real(dp), intent(in) :: zbar ! mean charge per nucleus
-         
-         integer, intent(in) :: species
-         integer, pointer :: chem_id(:) ! maps species to chem id
-            ! index from 1 to species
-            ! value is between 1 and num_chem_isos         
-         integer, pointer :: net_iso(:) ! maps chem id to species number
-            ! index from 1 to num_chem_isos (defined in chem_def)
-            ! value is 0 if the iso is not in the current net
-            ! else is value between 1 and number of species in current net
-         real(dp), intent(in) :: xa(:) ! mass fractions
-         
-         real(dp), intent(in) :: Rho, log10Rho ! the density
-            ! provide both if you have them.  else pass one and set the other to arg_not_provided
-            ! "arg_not_provided" is defined in mesa const_def
-            
-         real(dp), intent(in) :: T, log10T ! the temperature
-            ! provide both if you have them.  else pass one and set the other to arg_not_provided
-                     
-         ! OUTPUT
-         
-         real(dp), intent(inout) :: res(:) ! (num_eos_basic_results)
-         ! partial derivatives of the basic results wrt lnd and lnT
-         real(dp), intent(inout) :: d_dlnRho_const_T(:) ! (num_eos_basic_results)  
-         ! d_dlnRho_c_T(i) = d(res(i))/dlnd|T
-         real(dp), intent(inout) :: d_dlnT_const_Rho(:) ! (num_eos_basic_results) 
-         ! d_dlnT(i) = d(res(i))/dlnT|Rho
-         real(dp), intent(inout) :: d_dabar_const_TRho(:) ! (num_eos_basic_results) 
-         real(dp), intent(inout) :: d_dzbar_const_TRho(:) ! (num_eos_basic_results) 
-         
-         integer, intent(out) :: ierr ! 0 means AOK.
-         
-         res = 0
-         d_dlnRho_const_T = 0
-         d_dlnT_const_Rho = 0
-         d_dabar_const_TRho = 0
-         d_dzbar_const_TRho = 0
-
-         write(*,*) 'no implementation for other_eosDT_get'
-         ierr = -1
-         
-      end subroutine eosion_DT_get
         
       subroutine extras_controls(id, ierr)
          integer, intent(in) :: id
          integer, intent(out) :: ierr
          type (star_info), pointer :: s
+
+         integer :: i
+
          ierr = 0
          call star_ptr(id, s, ierr)
          if (ierr /= 0) return
          
          ! this is the place to set any procedure pointers you want to change
          ! e.g., other_wind, other_mixing, other_energy  (see star_data.inc)
-         s% other_eosDT_get => eosion_DT_get
+         s% other_build_initial_model => build_wd
          
          ! Uncomment these lines if you wish to use the functions in this file,
          ! otherwise we use a null_ version which does nothing.
@@ -126,8 +69,8 @@
          ! Once you have set the function pointers you want,
          ! then uncomment this (or set it in your star_job inlist)
          ! to disable the printed warning message,
-          s% job% warn_run_star_extras =.false.       
-            
+         s% job% warn_run_star_extras =.false.       
+
       end subroutine extras_controls
       
       ! None of the following functions are called unless you set their
@@ -139,6 +82,7 @@
          logical, intent(in) :: restart
          integer, intent(out) :: ierr
          type (star_info), pointer :: s
+
          ierr = 0
          call star_ptr(id, s, ierr)
          if (ierr /= 0) return
@@ -148,6 +92,7 @@
          else ! it is a restart
             call unpack_extra_info(s)
          end if
+         
       end function extras_startup
       
 

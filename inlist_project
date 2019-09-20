@@ -1,17 +1,8 @@
-! inlist to evolve a 15 solar mass star
-
-! For the sake of future readers of this file (yourself included),
-! ONLY include the controls you are actually using.  DO NOT include
-! all of the other controls that simply have their default values.
-
 &star_job
 
-  ! begin with a pre-main sequence model
-    create_pre_main_sequence_model = .true.
-
-  ! save a model at the end of the run
-    save_model_when_terminate = .false.
-    save_model_filename = '15M_at_TAMS.mod'
+  ! build our own model
+    create_initial_model = .true.
+    initial_model_relax_num_steps = 100
 
   ! display on-screen plots
     pgstar_flag = .true.
@@ -22,18 +13,38 @@
 &controls
 
   ! starting specifications
-    initial_mass = 15 ! in Msun units
+    initial_mass = 0.6 ! in Msun units
+
+    use_type2_opacities = .true.
+    Zbase = 0.02
+
+    x_ctrl(1) = 0.8 ! o16 mass fraction
+
+    use_eosELM = .false.
+
+    eps_nuc_factor = 0
+    dxdt_nuc_factor = 0
 
   ! options for energy conservation (see MESA V, Section 3)
-     use_dedt_form_of_energy_eqn = .true.
-     use_gold_tolerances = .true.
+     use_dedt_form_of_energy_eqn = .false.
+     ! use_gold_tolerances = .true.
 
-  ! stop when the star nears ZAMS (Lnuc/L > 0.99)
-    Lnuc_div_L_zams_limit = 0.99d0
-    stop_near_zams = .true.
+  ! ! stop when the star nears ZAMS (Lnuc/L > 0.99)
+  !   Lnuc_div_L_zams_limit = 0.99d0
+  !   stop_near_zams = .true.
 
-  ! stop when the center mass fraction of h1 drops below this limit
-    xa_central_lower_limit_species(1) = 'h1'
-    xa_central_lower_limit(1) = 1d-3
+  ! ! stop when the center mass fraction of h1 drops below this limit
+  !   xa_central_lower_limit_species(1) = 'h1'
+  !   xa_central_lower_limit(1) = 1d-3
+
+    !atm_option = 'simple_photosphere'
+
+    ! inject_uniform_extra_heat = 50000
+    ! min_q_for_uniform_extra_heat = 0
+    ! max_q_for_uniform_extra_heat = 0.9
+
+    varcontrol_target = 1e-3
+
+    use_other_build_initial_model = .true.
 
 / ! end of controls namelist

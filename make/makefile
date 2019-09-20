@@ -1,8 +1,59 @@
-ifeq ($(MESA_DIR),)
-ifeq ($($MESA_DIR_INTENTIONALLY_EMPTY),)
-  $(error MESA_DIR enviroment variable is not set)
-endif
+# work_standard_makefile
+
+# change this as necessary.  see utils/makefile_header for definitions.
+
+include $(MESA_DIR)/utils/makefile_header
+
+LOAD_MESA = $(LOAD_EXTRAS1) $(LOAD_MESA_STAR) $(LOAD_EXTRAS)
+
+#################################################################
+
+ifndef STAR
+STAR = star
 endif
 
-include $(MESA_DIR)/star/work_standard_makefile
-STAR = star
+# STAR_WORK_OBJS defined in makefile_header
+OBJS = $(STAR_WORK_OBJS) run.o eos_support.o mlt_info.o model_builder.o
+
+WORK_DIR = ..
+WORK_SRC_DIR = $(WORK_DIR)/src
+STAR_JOB_DIR = $(MESA_DIR)/star/job
+
+$(STAR) : $(OBJS)
+	$(LOADER) $(FCopenmp) -o $(WORK_DIR)/$(STAR) $(OBJS) $(LOAD_MESA)
+
+#################################################################
+
+# WORK_COMPILE defined in makefile_header
+
+ifeq ($(SKIP_NAN_TRAPS),YES)
+run.o: $(WORK_SRC_DIR)/run.f
+	$(WORK_COMPILE) $<
+else
+run.o: $(WORK_SRC_DIR)/run.f
+	$(WORK_COMPILE) $(FCtrapNANs) $<
+endif
+
+run_star_extras.o: $(WORK_SRC_DIR)/run_star_extras.f eos_support.o mlt_info.o model_builder.o
+	$(WORK_COMPILE) $<
+
+%.o: $(STAR_JOB_DIR)/%.f
+	$(WORK_COMPILE) $<
+
+%.o: $(WORK_SRC_DIR)/%.f90
+	$(WORK_COMPILE) $<
+
+clean:
+	-@rm -f *.o *.mod $(WORK_DIR)/$(STAR)
+
+remk:
+	-@rm -f run.o $(WORK_DIR)/$(STAR)
+
+
+
+
+
+
+
+
+

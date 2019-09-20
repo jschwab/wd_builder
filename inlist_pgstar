@@ -5,17 +5,8 @@
 
   ! show HR diagram
   ! this plots the history of L,Teff over many timesteps
-    HR_win_flag = .true.
+    Abundance_win_flag = .true.
 
-  ! set static plot bounds
-    HR_logT_min = 3.5
-    HR_logT_max = 4.6
-    HR_logL_min = 2.0
-    HR_logL_max = 6.0
-
-  ! set window size (aspect_ratio = height/width)
-    HR_win_width = 6
-    HR_win_aspect_ratio = 1.0
 
 
   ! show temperature/density profile
@@ -31,5 +22,67 @@
   ! set window size (aspect_ratio = height/width)
     TRho_Profile_win_width = 8
     TRho_Profile_win_aspect_ratio = 0.75
+
+         Profile_Panels1_win_flag = .true.
+
+         Profile_Panels1_win_width = 6
+         Profile_Panels1_win_aspect_ratio = 0.75 ! aspect_ratio = height/width
+
+         Profile_Panels1_xleft = 0.15
+         Profile_Panels1_xright = 0.85
+         Profile_Panels1_ybot = 0.15
+         Profile_Panels1_ytop = 0.85
+         Profile_Panels1_txt_scale = 1.0
+         Profile_Panels1_title = 'Profile Panels1'
+
+         Profile_Panels1_xaxis_name = 'zone'
+         Profile_Panels1_xaxis_reversed = .false.
+         Profile_Panels1_xmin = -101 ! only used if /= -101d0
+         Profile_Panels1_xmax = -101 ! only used if /= -101d0
+         Profile_Panels1_xmargin = 0d0
+         Profile_Panels1_show_mix_regions_on_xaxis = .false.
+
+         Profile_Panels1_yaxis_name(:) = ''
+         Profile_Panels1_yaxis_reversed(:) = .false.
+         Profile_Panels1_yaxis_log(:) = .false. ! show log10 of abs value
+         Profile_Panels1_ymin(:) = -101d0 ! only used if /= -101d0
+         Profile_Panels1_ymax(:) = -101d0 ! only used if /= -101d0
+         Profile_Panels1_ycenter(:) = -101d0 ! only used if /= -101d0
+         Profile_Panels1_ymargin(:) = 0.1
+         Profile_Panels1_dymin(:) = -1
+
+         Profile_Panels1_other_yaxis_name(:) = ''
+         Profile_Panels1_other_yaxis_reversed(:) = .false.
+         Profile_Panels1_other_yaxis_log(:) = .false. ! show log10 of abs value
+         Profile_Panels1_other_ymin(:) = -101d0 ! only used if /= -101d0
+         Profile_Panels1_other_ymax(:) = -101d0 ! only used if /= -101d0
+         Profile_Panels1_other_ycenter(:) = -101d0 ! only used if /= -101d0
+         Profile_Panels1_other_ymargin(:) = 0.1
+         Profile_Panels1_other_dymin(:) = -1
+
+         Profile_Panels1_show_grid = .false.
+
+         ! setup default plot
+         Profile_Panels1_num_panels = 2
+         Profile_Panels1_yaxis_name(1) = 'logT'
+         Profile_Panels1_other_yaxis_name(1) = 'logS'
+         Profile_Panels1_yaxis_name(2) = 'logRho'
+         Profile_Panels1_other_yaxis_name(2) = 'extra_heat'
+
+         ! Enables calling a subroutine to add extra information to a plot
+         ! see `$MESA_DIR/star/other/pgstar_decorator.f90`
+         Profile_Panels1_use_decorator = .false.
+
+         ! file output
+         Profile_Panels1_file_flag = .false.
+         Profile_Panels1_file_dir = 'png'
+         Profile_Panels1_file_prefix = 'profile_panels1_'
+         Profile_Panels1_file_interval = 5 ! output when `mod(model_number,Profile_Panels1_file_interval)==0`
+         Profile_Panels1_file_width = -1 ! (inches) negative means use same value as for window
+         Profile_Panels1_file_aspect_ratio = -1 ! negative means use same value as for window
+
+
+         hr_win_flag = .true.
+         hr_file_flag = .true.
 
 / ! end of pgstar namelist
