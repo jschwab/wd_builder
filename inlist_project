@@ -5,8 +5,10 @@
     initial_model_relax_num_steps = 100
 
     change_net = .true.
-    new_net_name = 'o18_and_ne22.net'
-
+    new_net_name = 'mesa_49.net'
+    
+    relax_composition_filename = 'composition_test.dat'
+    
   ! display on-screen plots
     pgstar_flag = .true.
 
@@ -35,23 +37,10 @@
      use_dedt_form_of_energy_eqn = .false.
      ! use_gold_tolerances = .true.
 
-  ! ! stop when the star nears ZAMS (Lnuc/L > 0.99)
-  !   Lnuc_div_L_zams_limit = 0.99d0
-  !   stop_near_zams = .true.
-
-  ! ! stop when the center mass fraction of h1 drops below this limit
-  !   xa_central_lower_limit_species(1) = 'h1'
-  !   xa_central_lower_limit(1) = 1d-3
-
-    !atm_option = 'simple_photosphere'
-
-    ! inject_uniform_extra_heat = 50000
-    ! min_q_for_uniform_extra_heat = 0
-    ! max_q_for_uniform_extra_heat = 0.9
-
     varcontrol_target = 1e-3
 
     use_other_build_initial_model = .true.
     x_ctrl(1) = 1e8 ! Tc
+    x_logical_ctrl(1) = .false. ! if true, get composition from relax_composition_filename
 
 / ! end of controls namelist

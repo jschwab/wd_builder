@@ -13,9 +13,27 @@ module model_builder
   logical, parameter :: dbg = .true.
 
   integer, parameter :: i_Tc = 1
+  integer, parameter :: i_file = 1
 
+  ! data for composition from file
+  integer :: num_pts
+  real(dp), allocatable :: xq_data(:), xa_data(:,:)
+
+  abstract interface
+     subroutine get_xa_interface(s, q, xa)
+       use const_def, only: dp
+       use star_def, only: star_info
+       type (star_info), pointer :: s
+       real(dp), intent(in) :: q
+       real(dp) :: xa(:)
+     end subroutine get_xa_interface
+  end interface
+
+  procedure (get_xa_interface), pointer :: get_xa
+  
 contains
 
+  
   subroutine build_wd(id, ierr)
 
     use num_lib, only: look_for_brackets, safe_root
@@ -45,6 +63,13 @@ contains
     call star_ptr(id, s, ierr)
     if (ierr /= 0) return
 
+    if (s% x_logical_ctrl(i_file)) then
+       call read_composition_from_file(s, ierr)
+       get_xa => get_xa_from_file
+    else
+       get_xa => fxt_get_xa
+    end if
+    
     mstar = s% initial_mass * Msun
     s% mstar = mstar
     s% star_mass = mstar/Msun
@@ -319,8 +344,10 @@ contains
          rho_c, log10_cr(rho_c), T_c, log10_cr(T_c), &
          res, d_eos_dlnd, d_eos_dlnT, &
          d_eos_dabar, d_eos_dzbar, ierr)
-    write(*,*) 'failed in get_eos'
-    if (ierr /= 0) return
+    if (ierr /= 0) then
+       write(*,*) 'failed in get_eos'
+       return
+    end if
     call unpack_eos_results
 
     logPgas = res(i_lnPgas)/ln10
@@ -785,7 +812,7 @@ contains
   end subroutine set_qs
 
 
-  subroutine get_xa(s, q, xa)
+  subroutine fxt_get_xa(s, q, xa)
 
     use chem_def
 
@@ -825,6 +852,91 @@ contains
     end if
 
 
-  end subroutine get_xa
+  end subroutine fxt_get_xa
+
+
+  subroutine read_composition_from_file(s, ierr)
+
+    type (star_info), pointer :: s
+    
+    integer :: num_species
+    integer :: i, iounit, ierr
+    
+    open(newunit=iounit, file=trim(s% job% relax_composition_filename), &
+         status='old', action='read', iostat=ierr)
+    if (ierr /= 0) then
+       write(*,*) 'open failed', ierr, iounit
+       write(*, '(a)') 'failed to open ' // trim(s% job% relax_composition_filename)
+       close(iounit)
+       return
+    end if
+    
+    read(iounit, *, iostat=ierr) num_pts, num_species
+    if (ierr /= 0) then
+       close(iounit)
+       write(*, '(a)') 'failed while trying to read 1st line of ' // &
+            trim(s% job% relax_composition_filename)
+       return
+    end if
+    
+    if(num_species .ne. s% species) then
+       write(*,*) 'Error in ',trim(s% job% relax_composition_filename)
+       write(*,'(a,I4,a)') 'got ',num_species,' species'
+       write(*,'(a,I4,a)') 'expected ', s% species,' species'
+       write(*,*)
+       ierr=-1
+       return
+    end if
+    
+    allocate(xq_data(num_pts), xa_data(num_species,num_pts))
+    do i = 1, num_pts
+       read(iounit,*,iostat=ierr) xq_data(i), xa_data(1:num_species,i)
+       if (ierr /= 0) then
+          close(iounit)
+          write(*, '(a)') &
+               'failed while trying to read ' // trim(s% job% relax_composition_filename)
+          write(*,*) 'line', i+1
+          write(*,*) 'perhaps wrong info in 1st line?'
+          write(*,*) '1st line must have num_pts and num_species in that order'
+          deallocate(xq_data, xa_data)
+          return
+       end if
+    end do
+    close(iounit)
+
+  end subroutine read_composition_from_file
+  
+
+
+  subroutine get_xa_from_file(s, q, xa)
+  
+    use interp_1d_def, only: pm_work_size
+    use interp_1d_lib, only: interpolate_vector, interp_pm
+  
+    type (star_info), pointer :: s
+    real(dp), intent(in) :: q
+    real(dp) :: xa(:)
+  
+    real(dp), pointer :: work(:)
+  
+    real(dp) :: x_new(1), v_new(1)
+  
+    integer :: j, ierr
+  
+    allocate(work(pm_work_size*num_pts))
+  
+    x_new(1) = q
+    do j = 1, s% species
+       call interpolate_vector( &
+            num_pts, xq_data, 1, x_new, xa_data(j,:), v_new, &
+            interp_pm, pm_work_size, work, 'get_xa_from_target', ierr)
+       xa(j) = v_new(1)
+    end do
+  
+    deallocate(work)
+  
+  end subroutine get_xa_from_file
+  
+
 
 end module model_builder
