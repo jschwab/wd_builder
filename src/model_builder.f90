@@ -12,34 +12,30 @@ module model_builder
 
   logical, parameter :: dbg = .true.
 
+  integer, parameter :: i_Tc = 1
+
 contains
 
   subroutine build_wd(id, ierr)
 
-    use chem_def
-    use chem_lib, only : basic_composition_info
     use num_lib, only: look_for_brackets, safe_root
 
     integer, intent(in) :: id
     integer, intent(out) :: ierr
     type (star_info), pointer :: s
 
-    integer, parameter :: pre_ms_lipar = 1
+    integer, parameter :: wd_lipar = 1
     integer, pointer :: ipar(:)
-    integer :: pre_ms_lrpar
+    integer :: wd_lrpar
     real(dp), pointer :: rpar(:)
 
     real(dp), pointer :: xh(:,:), q(:), dq(:)
 
     integer :: i, j, k, nz
 
-    real(dp) :: mstar, mstar1, rstar, T_c, rho_c, lgL, eps_grav
-
-    real(dp) :: xc, xn, xo, xne, xheavy, Zbase
+    real(dp) :: mstar, mstar1, rstar, T_c, rho_c, L_core
 
     real(dp) :: lnd, dlnd, lnd1, lnd3, y1, y3, epsx, epsy
-
-    integer :: funit
 
     integer, parameter :: imax = 100
 
@@ -59,49 +55,44 @@ contains
     s% R_center = 0
     s% v_center = 0
 
-    ! guess for Tc and Rhoc
-    ! fix Tc, iterate Rhoc
-    T_c = 1e8
+    ! fix central temperature
+    T_c = s% x_ctrl(i_Tc)
 
-    ! all low mass WDs are around here
-    rho_c = 1e7
+    ! rough guess for initial central density
+    rho_c = 1e7 * pow_cr(s% initial_mass / 0.8d0, 5d0)
 
-    ! pick a luminosity
-    lgL = -1d0
+    ! pick a luminosity for the core; will impose L(m) = Lcore * m
+    ! this won't be the final L, MESA is just happier if gradT = 0
+    L_core = 0.1 * Lsun
 
-    ! use uniform eps_grav to give that luminosity
-    eps_grav = exp10_cr(lgL)*Lsun/mstar
-
-    
     if (dbg) then
        write(*,1) 'T_c', T_c
        write(*,1) 'rho_c', rho_c
-       write(*,1) 'lgL', lgL
-       write(*,1) 'eps_grav', eps_grav
+       write(*,1) 'L_core', L_core
        write(*,1) 'mstar/Msun', mstar/Msun
     end if
 
-    pre_ms_lrpar = 3
-    allocate(rpar(pre_ms_lrpar))
+    wd_lrpar = 3
+    allocate(rpar(wd_lrpar))
     i = 1 ! rpar(1) for mstar result
     rpar(i+1) = T_c; i = i+1
-    rpar(i+1) = eps_grav; i = i+1
+    rpar(i+1) = L_core; i = i+1
 
-    if (i /= pre_ms_lrpar) then
-       write(*,*) 'i /= pre_ms_lrpar', i, pre_ms_lrpar
-       write(*,*) 'pre ms'
+    if (i /= wd_lrpar) then
+       write(*,*) 'i /= wd_lrpar', i, wd_lrpar
+       write(*,*) 'wd'
        ierr = -1
        return
     end if
 
-    allocate(ipar(pre_ms_lipar))
+    allocate(ipar(wd_lipar))
     ipar(1) = id
 
     lnd = log_cr(rho_c)
     dlnd = 0.1d0
 
     call look_for_brackets(lnd, dlnd, lnd1, lnd3, wd_f, y1, y3, &
-         imax, pre_ms_lrpar, rpar, pre_ms_lipar, ipar, ierr)
+         imax, wd_lrpar, rpar, wd_lipar, ipar, ierr)
     if (ierr /= 0) then
        if (dbg) then
           if (dbg) write(*,*) 'look_for_brackets ierr', ierr
@@ -118,7 +109,7 @@ contains
     epsy = 1d-3 ! limit for matching desired mass as fraction of total mass
 
     lnd = safe_root(wd_f, lnd1, lnd3, y1, y3, imax, epsx, epsy, &
-         pre_ms_lrpar, rpar, pre_ms_lipar, ipar, ierr)
+         wd_lrpar, rpar, wd_lipar, ipar, ierr)
     if (ierr /= 0) then
        if (dbg) write(*,*) 'safe_root ierr', ierr
        return
@@ -133,7 +124,7 @@ contains
 
     if (dbg) then
        write(*,*)
-       write(*,*) 'finished pre-MS model'
+       write(*,*) 'finished build_wd model'
        write(*,1) 'mstar1/Msun', mstar1/Msun
        write(*,1) '(mstar-mstar1)/mstar', (mstar-mstar1)/mstar
        write(*,1) 'log10(r/Rsun)', log10_cr(exp_cr(xh(s% i_lnR,1))/Rsun)
@@ -142,7 +133,6 @@ contains
        write(*,1) 'Tsurf', exp_cr(xh(s% i_lnT,1))
        write(*,*) 'nz', nz
        write(*,*)
-       !stop 'debug: pre ms'
     end if
 
     ! The following deallocations deal with arrays which were
@@ -159,28 +149,16 @@ contains
        return
     end if
 
-    open(newunit=funit, file='initial_model.dat')
-
-    do j=1,s% nvar_hydro
-       write(funit, *) '! ', j, trim(s% nameofvar(j))
-    end do
-
     do k=1,nz
        do j=1,s% nvar_hydro
           s% xh(j,k) = xh(j,k)
        end do
-       write(funit,*) xh(:,k)
-       ! do j=1,species
-       !    s% xa(j,k) = xa(j)
-       ! end do
        s% q(k) = q(k)
        s% dq(k) = dq(k)
        call get_xa(s, s% q(k), s% xa(:, k))
     end do
 
-    close(funit)
-
-    deallocate(xh, q, dq)
+    deallocate(xh, q, dq, ipar, rpar)
 
   end subroutine build_wd
 
@@ -193,9 +171,9 @@ contains
     integer, intent(out) :: ierr
 
     type (star_info), pointer :: s
-    real(dp) :: rho_c, T_c, eps_grav, x, z, abar, zbar, d_log10_P
+    real(dp) :: rho_c, T_c, L_core, d_log10_P
     real(dp), pointer :: xa(:)
-    integer :: i, nz, species
+    integer :: i, nz
     real(dp) :: mstar, mstar1
 
     logical, parameter :: dbg = .true.
@@ -206,15 +184,13 @@ contains
     wd_f = 0
     if (lipar <= 0) then
        write(*,*) 'lipar', lipar
-       write(*,*) 'pre_ms f'
+       write(*,*) 'wd f'
        ierr = -1
        return
     end if
 
     call star_ptr(ipar(1), s, ierr)
     if (ierr /= 0) return
-
-    species = s% species
 
     if (associated(s% xh)) deallocate(s% xh)
     if (associated(s% q)) deallocate(s% q)
@@ -224,10 +200,10 @@ contains
 
     i = 1 ! rpar(1) for mstar result
     T_c = rpar(i+1); i = i+1
-    eps_grav = rpar(i+1); i = i+1
+    L_core = rpar(i+1); i = i+1
     if (i > lrpar) then
        write(*,*) 'i > lrpar', i, lrpar
-       write(*,*) 'pre_ms f'
+       write(*,*) 'wd f'
        ierr = -1
        return
     end if
@@ -236,11 +212,9 @@ contains
     mstar1 = mstar ! to keep gfortran quiet
 
     if (dbg) write(*,*) 'call build1_wd_model'
-    call build1_wd_model( &
-         s, T_c, rho_c, 0d0, eps_grav, nz, mstar1, ierr)
+    call build1_wd_model(s, T_c, rho_c, L_core, nz, mstar1, ierr)
     if (ierr /= 0) then
        write(*,*) 'failed in build1_wd_model'
-       !ierr = 0
        return
     end if
 
@@ -261,19 +235,15 @@ contains
   end function wd_f
 
 
-  subroutine build1_wd_model( &
-       s, T_c, rho_c, d_log10_P_in, eps_grav_in, &
-       nz, mstar, ierr)
+  subroutine build1_wd_model(s, T_c, rho_c, L_core, nz, mstar, ierr)
     use chem_def
     use eos_def
     use kap_lib
     use chem_lib
     use eos_lib, only: Radiation_Pressure
     use eos_support, only: get_eos, solve_eos_given_PgasT
-    !     use star_utils, only: normalize_dqs, set_qs
     type (star_info), pointer :: s
-    real(dp), intent(in) :: &
-         T_c, rho_c, d_log10_P_in, eps_grav_in
+    real(dp), intent(in) :: T_c, rho_c, L_core
     real(dp) :: x, z, abar, zbar
     real(dp), allocatable :: xa(:)
     integer, intent(out) :: nz
@@ -286,10 +256,10 @@ contains
 
     integer :: i, ii, k, j, i_lnd, i_lnT, i_lnR, prune, max_retries
     real(dp), parameter :: &
-         delta_logPgas = 0.01d0, q_at_nz = 1d-5
+         dlogPgas = 0.01d0, q_at_nz = 1d-5
     real(dp) :: &
-         P_surf_limit, y, dlogPgas, logPgas, Prad, Pgas, try_dlogPgas, logPgas0, &
-         res(num_eos_basic_results), eps_grav, P_c, logP, m, &
+         P_surf_limit, y, logPgas, Prad, Pgas, try_dlogPgas, logPgas0, &
+         res(num_eos_basic_results), P_c, logP, m, &
          d_eos_dlnd(num_eos_basic_results), d_eos_dlnT(num_eos_basic_results), &
          d_eos_dabar(num_eos_basic_results), d_eos_dzbar(num_eos_basic_results), &
          lnfree_e, d_lnfree_e_dlnRho, d_lnfree_e_dlnT, &
@@ -338,16 +308,6 @@ contains
 
     cgrav = standard_cgrav
 
-    eps_grav = eps_grav_in
-    if (dbg) write(*,1) 'eps_grav', eps_grav
-
-    if (d_log10_P_in == 0) then
-       dlogPgas = delta_logPgas
-    else
-       dlogPgas = abs(d_log10_P_in)
-    end if
-    if (dbg) write(*,1) 'dlogPgas', dlogPgas
-
     allocate(xa(s% species))
 
     call get_xa(s, 0d0, xa)
@@ -389,13 +349,13 @@ contains
          ierr)
     if (ierr /= 0) return
     rho = exp10_cr(logRho)
-    call unpack_eos_results            
+    call unpack_eos_results
 
     r = pow_cr(m/(pi4*rho/3),one_third) ! radius at nz
 
     y = 1 - (x+z)
 
-    L = eps_grav*m ! L at nz
+    L = L_core * (m/mstar)
 
 
     call kap_get( &
@@ -433,7 +393,7 @@ contains
 
     if (dbg) write(*,*) 'nz', nz
 
-    max_retries = 10         
+    max_retries = 10
     prune = 0
     step_loop: do k = nz-1, 1, -1
 
@@ -478,7 +438,7 @@ contains
                 if (dbg) write(*,2) 'r', ii, r, m, dm
              end do
 
-             L = L0 + dm*eps_grav ! luminosity at point k
+             L = L0 + dm*(L_core/mstar) ! luminosity at point k
              Lmid = (L0+L)/2
 
              Pmid = (P+P0)/2
@@ -519,8 +479,6 @@ contains
                         lnfree_e, d_lnfree_e_dlnRho, d_lnfree_e_dlnT, &
                         gradT, ierr )
                    if (ierr /= 0) return
-                   !write(*,*) gradT, res(i_eta)
-                   !gradT = 0
                 else
                    gradT = 0.235
                 end if
@@ -682,7 +640,7 @@ contains
          opacity_00, d_opacity_00_dlnd, d_opacity_00_dlnT, &
          opacity_m1, d_opacity_m1_dlnd, d_opacity_m1_dlnT, &
          grada_00, d_grada_00_dlnd, d_grada_00_dlnT, &
-         grada_m1, d_grada_m1_dlnd, d_grada_m1_dlnT 
+         grada_m1, d_grada_m1_dlnd, d_grada_m1_dlnT
     logical :: smooth_gradT
     smooth_gradT = .false.
     normal_mlt_gradT_factor = 1d0
@@ -712,12 +670,12 @@ contains
     opacity_00=0d0; d_opacity_00_dlnd=0d0; d_opacity_00_dlnT=0d0
     opacity_m1=0d0; d_opacity_m1_dlnd=0d0; d_opacity_m1_dlnT=0d0
     grada_00=0d0; d_grada_00_dlnd=0d0; d_grada_00_dlnT=0d0
-    grada_m1=0d0; d_grada_m1_dlnd=0d0; d_grada_m1_dlnT=0d0            
+    grada_m1=0d0; d_grada_m1_dlnd=0d0; d_grada_m1_dlnT=0d0
 
     call do1_mlt_eval( &
          s, 0, cgrav, m, mstar, r, L, x, T, rho, P, &
          chiRho, chiT, Cp, opacity, grada, &
-         
+
                                 ! not used
          alfa, beta, d_alfa_dq00, d_alfa_dqm1, d_alfa_dqp1, &
          T_00, T_m1, rho_00, rho_m1, P_00, P_m1, &
@@ -730,8 +688,8 @@ contains
          opacity_00, d_opacity_00_dlnd, d_opacity_00_dlnT, &
          opacity_m1, d_opacity_m1_dlnd, d_opacity_m1_dlnT, &
          grada_00, d_grada_00_dlnd, d_grada_00_dlnT, &
-         grada_m1, d_grada_m1_dlnd, d_grada_m1_dlnT, &            
-         
+         grada_m1, d_grada_m1_dlnd, d_grada_m1_dlnT, &
+
          gradr_factor, gradL_composition_term, &
          alpha_semiconvection, s% semiconvection_option, &
          thermohaline_coeff, s% thermohaline_option, ih1, &
@@ -739,7 +697,7 @@ contains
          s% MLT_option, s% Henyey_MLT_y_param, s% Henyey_MLT_nu_param, &
          gradT_smooth_low, gradT_smooth_high, smooth_gradT, &
          normal_mlt_gradT_factor, &
-         prev_conv_vel, max_conv_vel, s% mlt_accel_g_theta, dt, tau, .false., & 
+         prev_conv_vel, max_conv_vel, s% mlt_accel_g_theta, dt, tau, .false., &
          mixing_type, mlt_basics, mlt_partials1, ierr)
     if (ierr /= 0) return
 
@@ -870,4 +828,3 @@ contains
   end subroutine get_xa
 
 end module model_builder
-

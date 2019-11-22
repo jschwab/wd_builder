@@ -28,6 +28,9 @@
 
     do_element_diffusion = .true.
 
+    atm_option = 'table'
+    atm_table = 'DB_WD_tau_25'
+
   ! options for energy conservation (see MESA V, Section 3)
      use_dedt_form_of_energy_eqn = .false.
      ! use_gold_tolerances = .true.
@@ -49,5 +52,6 @@
     varcontrol_target = 1e-3
 
     use_other_build_initial_model = .true.
+    x_ctrl(1) = 1e8 ! Tc
 
 / ! end of controls namelist
