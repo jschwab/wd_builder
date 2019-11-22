@@ -4,6 +4,9 @@
     create_initial_model = .true.
     initial_model_relax_num_steps = 100
 
+    change_net = .true.
+    new_net_name = 'o18_and_ne22.net'
+
   ! display on-screen plots
     pgstar_flag = .true.
 
@@ -18,12 +21,12 @@
     use_type2_opacities = .true.
     Zbase = 0.02
 
-    x_ctrl(1) = 0.8 ! o16 mass fraction
-
     use_eosELM = .false.
 
     eps_nuc_factor = 0
     dxdt_nuc_factor = 0
+
+    do_element_diffusion = .true.
 
   ! options for energy conservation (see MESA V, Section 3)
      use_dedt_form_of_energy_eqn = .false.
