@@ -1,0 +1,27 @@
+* MESA WD Model Builder
+This work directory is a prototype of using the
+~other_build_initial_model~ hook to make a WD.
+
+The code's not great, but mostly seems to work.
+
+** Options
+*** ~x_ctrl(1)~
+This sets the initial central temperature of the WD.  
+ 
+*** ~x_logical_ctrl(1)~
+If true, this reads the composition from ~relax_composition_filename~
+in ~star_job~.   
+
+If false, it the subroutine ~get_xa_from_code~ in
+~src/model_builder.f90~ is called.  This routine must provide the
+composition as a function of q.
+
+*** ~x_logical_ctrl(2)~
+
+If false, this assumes the coordinate in ~relax_composition_filename~
+is xq (= 1 - q).  That is the format typically assumed by
+~relax_initial_composition~.
+
+If true, this assumes the coordinate in ~relax_composition_filename~
+is q.  The included file ~composition_test.dat~ uses q and
+~mesa_49.net~.
