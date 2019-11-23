@@ -14,6 +14,7 @@ module model_builder
 
   integer, parameter :: i_Tc = 1
   integer, parameter :: i_file = 1
+  integer, parameter :: i_qxq = 1
 
   ! data for composition from file
   integer :: num_pts
@@ -67,7 +68,7 @@ contains
        call read_composition_from_file(s, ierr)
        get_xa => get_xa_from_file
     else
-       get_xa => fxt_get_xa
+       get_xa => get_xa_from_code
     end if
     
     mstar = s% initial_mass * Msun
@@ -306,13 +307,13 @@ contains
 
     ierr = 0
 
-    logP_surf_limit = s% pre_ms_logP_surf_limit
-    if (logP_surf_limit <= 0) logP_surf_limit = 3.5d0
+    logP_surf_limit = s% job% pre_ms_logP_surf_limit
     P_surf_limit = exp10_cr(logP_surf_limit)
+    if (dbg) write(*,1) 'logP_surf_limit', logP_surf_limit
 
-    logT_surf_limit = s% pre_ms_logT_surf_limit
+    
+    logT_surf_limit = s% job% pre_ms_logT_surf_limit
     if (logT_surf_limit <= 0) logT_surf_limit = 3.7d0
-
     if (dbg) write(*,1) 'logT_surf_limit', logT_surf_limit
 
     i_lnd = s% i_lnd
@@ -320,13 +321,13 @@ contains
     i_lnR = s% i_lnR
 
     if (i_lnd == 0) then
-       write(*,*) 'Sorry: require lnPgas_flag be .false. for create_pre_main_sequence'
+       write(*,*) 'Sorry: require lnPgas_flag be .false. for build1_wd_model'
        ierr = -1
        return
     end if
 
     if (i_lnT == 0) then
-       write(*,*) 'Sorry: require E_flag be .false. for create_pre_main_sequence'
+       write(*,*) 'Sorry: require E_flag be .false. for build1_wd_model'
        ierr = -1
        return
     end if
@@ -361,7 +362,7 @@ contains
     logP = log10_cr(P)
 
     ! estimate nz from lgP
-    nz = 1 + (logP - s% pre_ms_logP_surf_limit)/dlogPgas
+    nz = 1 + (logP - logP_surf_limit)/dlogPgas
 
     ! temperature at nz assuming isothermal
     lnT = log_cr(T_c)
@@ -495,11 +496,9 @@ contains
                      zbar, log10_cr(rho_mid), log10_Cr(Tmid), &
                      kap_cond, dlnkap_dlnd, dlnkap_dlnT, ierr)
 
-
-
                 kap_rad = 1d0/(1d0/opacity - 1d0/kap_cond)
 
-                if (kap_cond .lt. 8 * kap_rad) then
+                if (kap_cond .lt. kap_rad) then ! suggested by Evan
                    call eval_gradT( &
                         s, zbar, x, y, xa, rho_mid, mmid, mstar, rmid, Tmid, log_cr(Tmid), Lmid, Pmid, &
                         chiRho_mid, chiT_mid, Cp_mid, opacity, grada_mid, &
@@ -507,7 +506,7 @@ contains
                         gradT, ierr )
                    if (ierr /= 0) return
                 else
-                   gradT = 0.235
+                   gradT = 0.235 ! suggested by Lars
                 end if
 
                 T = T0 + Tmid*gradT*(P-P0)/Pmid
@@ -812,7 +811,7 @@ contains
   end subroutine set_qs
 
 
-  subroutine fxt_get_xa(s, q, xa)
+  subroutine get_xa_from_code(s, q, xa)
 
     use chem_def
 
@@ -852,7 +851,7 @@ contains
     end if
 
 
-  end subroutine fxt_get_xa
+  end subroutine get_xa_from_code
 
 
   subroutine read_composition_from_file(s, ierr)
@@ -924,8 +923,13 @@ contains
     integer :: j, ierr
   
     allocate(work(pm_work_size*num_pts))
-  
-    x_new(1) = q
+
+    if (s% x_logical_ctrl(i_qxq)) then
+       x_new(1) = q
+    else
+       x_new(1) = 1d0 - q
+    end if
+    
     do j = 1, s% species
        call interpolate_vector( &
             num_pts, xq_data, 1, x_new, xa_data(j,:), v_new, &
