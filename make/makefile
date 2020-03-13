@@ -13,7 +13,7 @@ STAR = star
 endif
 
 # STAR_WORK_OBJS defined in makefile_header
-OBJS = $(STAR_WORK_OBJS) run.o eos_support.o mlt_info.o model_builder.o
+OBJS = $(STAR_WORK_OBJS) run.o eos_support.o model_builder.o
 
 WORK_DIR = ..
 WORK_SRC_DIR = $(WORK_DIR)/src
@@ -34,7 +34,7 @@ run.o: $(WORK_SRC_DIR)/run.f
 	$(WORK_COMPILE) $(FCtrapNANs) $<
 endif
 
-run_star_extras.o: $(WORK_SRC_DIR)/run_star_extras.f eos_support.o mlt_info.o model_builder.o
+run_star_extras.o: $(WORK_SRC_DIR)/run_star_extras.f eos_support.o model_builder.o
 	$(WORK_COMPILE) $<
 
 %.o: $(STAR_JOB_DIR)/%.f

@@ -267,7 +267,7 @@ contains
     use kap_lib
     use chem_lib
     use eos_lib, only: Radiation_Pressure
-    use eos_support, only: get_eos, solve_eos_given_PgasT
+    use eos_support, only: solve_eos_given_PgasT
     type (star_info), pointer :: s
     real(dp), intent(in) :: T_c, rho_c, L_core
     real(dp) :: x, z, abar, zbar
@@ -340,7 +340,7 @@ contains
 
     call set_composition_info
 
-    call get_eos( &
+    call star_get_eos( &
          s, 0, z, x, abar, zbar, xa, &
          rho_c, log10_cr(rho_c), T_c, log10_cr(T_c), &
          res, d_eos_dlnd, d_eos_dlnT, &
@@ -583,12 +583,12 @@ contains
 
     mstar = m ! actual total mass
 
-    call normalize_dqs(nz, dq, ierr)
+    call star_normalize_dqs(nz, dq, ierr)
     if (ierr /= 0) then
        if (s% report_ierr) write(*,*) 'set_qs failed in pre ms model'
        return
     end if
-    call set_qs(nz, q, dq, ierr)
+    call star_set_qs(nz, q, dq, ierr)
     if (ierr /= 0) then
        if (s% report_ierr) write(*,*) 'set_qs failed in pre ms model'
        return
@@ -631,7 +631,6 @@ contains
        lnfree_e, d_lnfree_e_dlnRho, d_lnfree_e_dlnT, &
        gradT, ierr )
     use chem_def, only: ih1
-    use my_mlt_info, only: do1_mlt_eval
     use kap_lib, only : kap_get
 
     type (star_info), pointer :: s
@@ -698,8 +697,8 @@ contains
     grada_00=0d0; d_grada_00_dlnd=0d0; d_grada_00_dlnT=0d0
     grada_m1=0d0; d_grada_m1_dlnd=0d0; d_grada_m1_dlnT=0d0
 
-    call do1_mlt_eval( &
-         s, 0, cgrav, m, mstar, r, L, x, T, rho, P, &
+    call star_mlt_eval( &
+         s% id, 0, cgrav, m, mstar, r, L, x, T, rho, P, &
          chiRho, chiT, Cp, opacity, grada, &
 
                                 ! not used
@@ -730,86 +729,6 @@ contains
     gradT = mlt_basics(mlt_gradT) ! actual temperature gradient dlnT/dlnP
 
   end subroutine eval_gradT
-
-  subroutine normalize_dqs(nz, dq, ierr)
-    ! rescale dq's so that add to 1.000
-    ! work in from boundaries to meet at largest dq
-    integer, intent(in) :: nz
-    real(dp), intent(inout) :: dq(:) ! (nz)
-    integer, intent(out) :: ierr
-    integer :: k, midq
-    real(dp) :: dqsum1, dqsum2, dq_min
-    include 'formats'
-    k = minloc(dq(1:nz),dim=1)
-    dq_min = dq(k)
-    if (dq_min <= 0d0) then
-       write(*,2) 'bad dq', k, dq(k)
-       ierr = -1
-       !stop
-       return
-    end if
-    midq = maxloc(dq(1:nz),dim=1)
-    ! surface inward
-    dqsum1 = 0
-    do k=1, midq
-       dqsum1 = dqsum1 + dq(k)
-       if (dq(k) <= 0) then
-          ierr = -1
-          return
-       end if
-    end do
-    ! center outward
-    dqsum2 = 0
-    do k=nz, midq+1, -1
-       dqsum2 = dqsum2 + dq(k)
-       if (dq(k) <= 0) then
-          ierr = -1
-          return
-       end if
-    end do
-    do k=1,nz
-       dq(k) = dq(k)/(dqsum1 + dqsum2)
-    end do
-  end subroutine normalize_dqs
-
-
-  subroutine set_qs(nz, q, dq, ierr) ! set q's using normalized dq's
-    integer, intent(in) :: nz
-    real(dp), intent(inout) :: dq(:) ! (nz)
-    real(dp), intent(inout) :: q(:) ! (nz)
-    integer, intent(out) :: ierr
-    integer :: k, midq
-    real(dp) :: dqsum1, dqsum2
-    logical :: okay
-    include 'formats'
-    ierr = 0
-    call normalize_dqs(nz, dq, ierr)
-    if (ierr /= 0) return
-    q(1) = 1d0
-    okay = .true.
-    do k=2,nz
-       q(k) = q(k-1) - dq(k-1)
-       if (q(k) < 0d0 .or. q(k) > 1d0) then
-          okay = .false.
-          exit
-       end if
-    end do
-    if (okay) return
-    midq = maxloc(dq(1:nz),dim=1)
-    ! surface inward
-    dqsum1 = 0
-    do k=1, midq
-       q(k) = 1d0 - dqsum1
-       dqsum1 = dqsum1 + dq(k)
-    end do
-    ! center outward
-    dqsum2 = 0
-    do k=nz, midq+1, -1
-       dqsum2 = dqsum2 + dq(k)
-       q(k) = dqsum2
-    end do
-  end subroutine set_qs
-
 
   subroutine get_xa_from_code(s, q, xa)
 
