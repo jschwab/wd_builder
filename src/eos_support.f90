@@ -23,7 +23,7 @@
 !
 ! ***********************************************************************
 
-module eos_support
+module my_eos_support
 
   ! Uses
 
@@ -734,4 +734,4 @@ contains
 
   end subroutine solve_peos_given_DT_auto
 
-end module eos_support
+end module my_eos_support

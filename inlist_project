@@ -24,8 +24,6 @@
     use_type2_opacities = .true.
     Zbase = 0.02
 
-    use_eosELM = .false.
-
     eps_nuc_factor = 0
     dxdt_nuc_factor = 0
 
