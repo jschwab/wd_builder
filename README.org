@@ -3,8 +3,11 @@ This work directory is a prototype of using the
 ~other_build_initial_model~ hook to make a WD.
 
 The code's not great, but mostly seems to work.  It was written
-against MESA r12115.  (It won't work with the development version
-because of the ~crlibm~ -> ~mathlib~ switch.)
+against MESA r12115 and later updated for r12778.  (Look at the git
+tags to see which commits should work for these versions).
+
+Revised and improved code targeting the MESA development version is
+under construction elsewhere.
 
 ** Options
 *** ~x_ctrl(1)~
